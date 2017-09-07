@@ -77,6 +77,14 @@ parts:
       - dctrl-tools
       - sed
       - wget
+  recovery:
+    plugin: godeps
+    source: https://github.com/Lyoncore/arm-config.git
+    source-branch: master
+    go-importpath: github.com/Lyoncore/arm-config
+    build: |
+      cd pi3
+      GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go run ../build.go build
 
 slots:
   bcm-gpio-0:
