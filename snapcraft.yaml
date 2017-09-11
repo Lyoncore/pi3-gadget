@@ -92,6 +92,7 @@ parts:
       # TODO: dynamic create u-boot.env.in
       cp pi3/sysboot-includes/* $SNAPCRAFT_PART_INSTALL/recovery-assets/
       cp -r pi3/local-includes/recovery $SNAPCRAFT_PART_INSTALL/recovery-assets/
+      cp -r pi3/initrd_local-includes $SNAPCRAFT_PART_INSTALL/recovery-assets/
       cp pi3/config.yaml $SNAPCRAFT_PART_INSTALL/recovery-assets/recovery/
       mksquashfs pi3/writable_local-include $SNAPCRAFT_PART_INSTALL/recovery-assets/recovery/writable_local-include.squashfs -all-root
     build-packages:
