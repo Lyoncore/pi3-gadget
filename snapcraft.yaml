@@ -29,7 +29,6 @@ parts:
     install: |
       mkdir -p $SNAPCRAFT_PART_INSTALL/boot-assets
       cp u-boot.bin $SNAPCRAFT_PART_INSTALL/boot-assets/uboot.bin
-      tools/mkenvimage -r -s 131072 -o $SNAPCRAFT_PART_INSTALL/uboot.env ../../../uboot.env.in
       ln -s uboot.env $SNAPCRAFT_PART_INSTALL/uboot.conf
     build-packages:
       - bc
@@ -79,24 +78,38 @@ parts:
       - wget
   recovery:
     plugin: godeps
-    source: https://github.com/Lyoncore/arm-config.git
-    source-branch: master
+    source: https://github.com/musicguitar/arm-config.git
+    source-branch: support_ubutnu_image
     after:
       - devicetrees
     go-importpath: github.com/Lyoncore/arm-config
+    prepare: |
+      #TODO: move this code to recovery repo as a hook
+      cp ../../../uboot.env.in pi3/local-includes/
+      LABEL=$(cat pi3/config.yaml | grep filesystem-label | awk -F ': ' '{print $2}')
+      sed -i "s/recovery=LABEL=/recovery=LABEL=$LABEL/" pi3/local-includes/uboot.env.in
     build: |
+      #TODO: move this code to recovery repo as a hook
       cd pi3
       GOPATH=$SNAPCRAFT_PART_INSTALL/../go GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go run ../build.go build
     install: |
+      #TODO: move this code to recovery repo as a hook
       mkdir -p $SNAPCRAFT_PART_INSTALL/recovery-assets
-      # TODO: dynamic create u-boot.env.in
-      cp pi3/sysboot-includes/* $SNAPCRAFT_PART_INSTALL/recovery-assets/
       cp -r pi3/local-includes/recovery $SNAPCRAFT_PART_INSTALL/recovery-assets/
       cp -r pi3/initrd_local-includes $SNAPCRAFT_PART_INSTALL/recovery-assets/
       cp pi3/config.yaml $SNAPCRAFT_PART_INSTALL/recovery-assets/recovery/
       mksquashfs pi3/writable_local-include $SNAPCRAFT_PART_INSTALL/recovery-assets/recovery/writable_local-include.squashfs -all-root
+      mkenvimage -r -s 131072 -o $SNAPCRAFT_PART_INSTALL/uboot.env pi3/local-includes/uboot.env.in
     build-packages:
       - squashfs-tools
+      - u-boot-tools
+      - gawk
+      - sed
+  ubuntu-image-hooks:
+    plugin: dump
+    source: ubuntu-image-hooks
+    organize:
+      post-populate-rootfs: ubuntu-image-hooks/post-populate-rootfs
 slots:
   bcm-gpio-0:
     interface: gpio

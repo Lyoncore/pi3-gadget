@@ -1,0 +1,76 @@
+#!/bin/bash
+
+exec > >(tee -i /tmp/post-populate-rootfs.log)
+exec 2>&1
+
+set -ex
+
+UNPACK_GADGET=$PWD/$UBUNTU_IMAGE_HOOK_ROOTFS/../unpack/gadget
+UNPACK_BOOT=$PWD/$UBUNTU_IMAGE_HOOK_ROOTFS/../unpack/image/boot/
+
+backup_writable () {
+    echo "backup writable.tar.xz"
+    mkdir $UNPACK_GADGET/recovery-assets/recovery/factory/ || true
+    tar --xattrs -Jcpf $UNPACK_GADGET/recovery-assets/recovery/factory/writable.tar.xz -C $PWD/$UBUNTU_IMAGE_HOOK_ROOTFS .
+}
+
+backup_bootfs () {
+    echo "backup bootfs to system-boot.tar.xz"
+    TMPDIR=$(mktemp -d)
+    cp -r $UNPACK_GADGET/boot-assets/* $TMPDIR
+    if [ -d $UNPACK_BOOT/uboot/ ]; then
+        cp -r $UNPACK_BOOT/uboot/* $TMPDIR
+    elif [ -d $UNPACK_BOOT/grub/ ]; then
+        cp -r $UNPACK_BOOT/grub/* $TMPDIR
+    fi
+
+    mkdir $UNPACK_GADGET/recovery-assets/recovery/factory/ || true
+    tar --xattrs -Jcpf $UNPACK_GADGET/recovery-assets/recovery/factory/system-boot.tar.xz -C $TMPDIR .
+
+    mkdir $UNPACK_GADGET/recovery-assets/recovery/system-boot
+    cp -rf $TMPDIR/* $UNPACK_GADGET/recovery-assets/recovery/system-boot 
+
+    rm -rf $TMPDIR
+}
+
+populate_recovery_initrd () {
+    echo "populate recovery initrd"
+    cdir=$PWD
+    TMPDIR=$(mktemp -d)
+    cd $TMPDIR
+    if file $UNPACK_BOOT/uboot/*.snap/initrd.img | grep 'LZMA \| XZ'; then
+        unxz < $UNPACK_BOOT/uboot/*.snap/initrd.img | cpio -i
+        cp $UNPACK_GADGET/recovery-assets/initrd_local-includes/scripts/local-premount/00_recovery scripts/local-premount/
+        sed -i '1i/scripts/local-premount/00_recovery \"$@\"' scripts/local-premount/ORDER
+        find | cpio --quiet -o -H newc | xz -c9 --check=crc32 > $UNPACK_GADGET/recovery-assets/initrd.img
+    elif file $UNPACK_BOOT/uboot/*.snap/initrd.img | grep gzip; then
+        gunzip < $UNPACK_BOOT/uboot/*.snap/initrd.img | cpio -i
+        cp $UNPACK_GADGET/recovery-assets/initrd_local-includes/scripts/local-premount/00_recovery scripts/local-premount/
+        sed -i '1i/scripts/local-premount/00_recovery \"$@\"' scripts/local-premount/ORDER
+        find | cpio --quiet -o -H newc | gzip -9 > $UNPACK_GADGET/recovery-assets/initrd.img
+    fi
+
+    cd $cdir
+    rm -rf $TMPDIR
+
+}
+
+backup_kernel() {
+    echo "backup kernel"
+    cp $UNPACK_BOOT/uboot/*.snap/kernel.img $UNPACK_GADGET/recovery-assets/
+}
+
+backup_snaps() {
+    echo "backup snaps"
+    CORE=$(find $UBUNTU_IMAGE_HOOK_ROOTFS/system-data/var/lib/snapd/snaps/ -name 'core_*.snap')
+    KERNEL=$(find $UBUNTU_IMAGE_HOOK_ROOTFS/system-data/var/lib/snapd/snaps/ -name '*kernel_*.snap')
+
+    cp $CORE $UNPACK_GADGET/recovery-assets/core.snap
+    cp $KERNEL $UNPACK_GADGET/recovery-assets/kernel.snap
+}
+
+backup_writable
+backup_bootfs
+populate_recovery_initrd
+backup_kernel
+backup_snaps
