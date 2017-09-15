@@ -87,7 +87,7 @@ parts:
       #TODO: move this code to recovery repo as a hook
       cp ../../../uboot.env.in pi3/local-includes/
       LABEL=$(cat pi3/config.yaml | grep filesystem-label | awk -F ': ' '{print $2}')
-      sed -i "s/recovery=LABEL=/recovery=LABEL=$LABEL/" pi3/local-includes/uboot.env.in
+      sed -i "s/LABEL=/LABEL=$LABEL/" pi3/local-includes/uboot.env.in
     build: |
       #TODO: move this code to recovery repo as a hook
       cd pi3
