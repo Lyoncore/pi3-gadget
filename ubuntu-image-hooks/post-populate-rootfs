@@ -35,6 +35,8 @@ backup_bootfs () {
 
 populate_recovery_initrd () {
     echo "populate recovery initrd"
+    KERNEL=$(find $UBUNTU_IMAGE_HOOK_ROOTFS/system-data/var/lib/snapd/snaps/ -name '*kernel_*.snap' | xargs basename)
+    mkdir $UNPACK_GADGET/recovery-assets/$KERNEL || true
     cdir=$PWD
     TMPDIR=$(mktemp -d)
     cd $TMPDIR
@@ -42,12 +44,12 @@ populate_recovery_initrd () {
         unxz < $UNPACK_BOOT/uboot/*.snap/initrd.img | cpio -i
         cp $UNPACK_GADGET/recovery-assets/initrd_local-includes/scripts/local-premount/00_recovery scripts/local-premount/
         sed -i '1i/scripts/local-premount/00_recovery \"$@\"' scripts/local-premount/ORDER
-        find | cpio --quiet -o -H newc | xz -c9 --check=crc32 > $UNPACK_GADGET/recovery-assets/initrd.img
+        find | cpio --quiet -o -H newc | xz -c9 --check=crc32 > $UNPACK_GADGET/recovery-assets/$KERNEL/initrd.img
     elif file $UNPACK_BOOT/uboot/*.snap/initrd.img | grep gzip; then
         gunzip < $UNPACK_BOOT/uboot/*.snap/initrd.img | cpio -i
         cp $UNPACK_GADGET/recovery-assets/initrd_local-includes/scripts/local-premount/00_recovery scripts/local-premount/
         sed -i '1i/scripts/local-premount/00_recovery \"$@\"' scripts/local-premount/ORDER
-        find | cpio --quiet -o -H newc | gzip -9 > $UNPACK_GADGET/recovery-assets/initrd.img
+        find | cpio --quiet -o -H newc | gzip -9 > $UNPACK_GADGET/recovery-assets/$KERNEL/initrd.img
     fi
 
     cd $cdir
@@ -57,7 +59,9 @@ populate_recovery_initrd () {
 
 backup_kernel() {
     echo "backup kernel"
-    cp $UNPACK_BOOT/uboot/*.snap/kernel.img $UNPACK_GADGET/recovery-assets/
+    KERNEL=$(find $UBUNTU_IMAGE_HOOK_ROOTFS/system-data/var/lib/snapd/snaps/ -name '*kernel_*.snap' | xargs basename)
+    mkdir $UNPACK_GADGET/recovery-assets/$KERNEL || true
+    cp $UNPACK_BOOT/uboot/*.snap/kernel.img $UNPACK_GADGET/recovery-assets/$KERNEL || true
 }
 
 backup_snaps() {
@@ -65,8 +69,68 @@ backup_snaps() {
     CORE=$(find $UBUNTU_IMAGE_HOOK_ROOTFS/system-data/var/lib/snapd/snaps/ -name 'core_*.snap')
     KERNEL=$(find $UBUNTU_IMAGE_HOOK_ROOTFS/system-data/var/lib/snapd/snaps/ -name '*kernel_*.snap')
 
-    cp $CORE $UNPACK_GADGET/recovery-assets/core.snap
+    cp $CORE $UNPACK_GADGET/recovery-assets/os.snap
     cp $KERNEL $UNPACK_GADGET/recovery-assets/kernel.snap
+}
+
+_parse_yaml() {
+    # $1: the yaml file path
+    # $2: the first key header
+    # $3: the second key header
+    local file=$1
+    local head1=$2 head2=$3
+    local s='[[:space:]]*' w='[a-zA-Z0-9_-]*' fs=$(echo @|tr @ '\034')
+    sed -ne "s|^\($s\):|\1|" \
+        -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+        -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $file |
+    awk -F$fs '{
+      indent = length($1)/2;
+      vname[indent] = $2;
+      for (i in vname) {if (i > indent) {delete vname[i]}}
+      if (length($3) > 0) {
+         vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])}
+         if (vn == "'$head1'" && $2 == "'$head2'" )
+            printf("%s", $3);
+      }
+    }'
+}
+
+_check_u-boot-tools() {
+    if [ ! -f /usr/bin/fw_setenv ];then
+        echo "ERROR: Cannot find fw_setenv, please install u-boot-tools"
+        exit 1
+    fi
+}
+
+_gen_u-boot_cfg () {
+    TMP=$1
+    path=$2
+    cat << EOF > $TMP
+$path 0x0000 0x20000
+$path 0x0000 0x20000
+EOF
+
+}
+
+update_bootloader_cfg() {
+    echo "update_bootloader_cfg"
+    recovery_type=$(_parse_yaml $UNPACK_GADGET/recovery-assets/recovery/config.yaml recovery type)
+    bootloader=$(_parse_yaml $UNPACK_GADGET/recovery-assets/recovery/config.yaml configs bootloader)
+    if [ $bootloader == 'u-boot' ];then
+        _check_u-boot-tools
+        TMP=$(mktemp)
+        REL_PATH=$(realpath --relative-to=$PWD $UNPACK_BOOT/uboot/uboot.env)
+        _gen_u-boot_cfg $TMP $REL_PATH
+
+        if [ $recovery_type == "factory_install" ];then
+            cat $TMP
+            fw_setenv -c $TMP snap_mode recovery
+        fi
+        rm $TMP
+    else #TODO: To support grub
+        echo "Unkonw bootloader:$bootloader"
+        exit 1
+    fi
 }
 
 backup_writable
@@ -74,3 +138,4 @@ backup_bootfs
 populate_recovery_initrd
 backup_kernel
 backup_snaps
+update_bootloader_cfg
