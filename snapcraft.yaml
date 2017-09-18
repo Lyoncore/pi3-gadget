@@ -84,22 +84,11 @@ parts:
       - devicetrees
     go-importpath: github.com/Lyoncore/arm-config
     prepare: |
-      #TODO: move this code to recovery repo as a hook
-      cp ../../../uboot.env.in pi3/local-includes/
-      LABEL=$(cat pi3/config.yaml | grep filesystem-label | awk -F ': ' '{print $2}')
-      sed -i "s/LABEL=/LABEL=$LABEL/" pi3/local-includes/uboot.env.in
+      pi3/snapcraft_hooks/prepare.sh
     build: |
-      #TODO: move this code to recovery repo as a hook
-      cd pi3
-      GOPATH=$SNAPCRAFT_PART_INSTALL/../go GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go run ../build.go build
+      pi3/snapcraft_hooks/build.sh
     install: |
-      #TODO: move this code to recovery repo as a hook
-      mkdir -p $SNAPCRAFT_PART_INSTALL/recovery-assets
-      cp -r pi3/local-includes/recovery $SNAPCRAFT_PART_INSTALL/recovery-assets/
-      cp -r pi3/initrd_local-includes $SNAPCRAFT_PART_INSTALL/recovery-assets/
-      cp pi3/config.yaml $SNAPCRAFT_PART_INSTALL/recovery-assets/recovery/
-      mksquashfs pi3/writable_local-include $SNAPCRAFT_PART_INSTALL/recovery-assets/recovery/writable_local-include.squashfs -all-root
-      mkenvimage -r -s 131072 -o $SNAPCRAFT_PART_INSTALL/uboot.env pi3/local-includes/uboot.env.in
+      pi3/snapcraft_hooks/install.sh
     build-packages:
       - squashfs-tools
       - u-boot-tools
