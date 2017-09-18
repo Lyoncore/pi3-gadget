@@ -76,29 +76,34 @@ parts:
       - dctrl-tools
       - sed
       - wget
-  recovery:
-    plugin: godeps
-    source: https://github.com/musicguitar/arm-config.git
-    source-branch: support_ubutnu_image
+  recovery-configs:
+    plugin: dump
+    source: recovery-configs
     after:
       - devicetrees
-    go-importpath: github.com/Lyoncore/arm-config
+    organize:
+        devmode-firstboot-hooks/*: writable-includes/system-data/var/lib/devmode-firstboot/hooks.d/
+        config.yaml: recovery-assets/recovery/
+    stage:
+        - -devmode-firstboot-hooks/
+  ubuntu-recovery:
+    plugin: godeps
+    source: https://github.com/musicguitar/ubuntu-recovery.git
+    source-branch: master
+    after:
+      - recovery-configs
+    go-importpath: github.com/musicguitar/ubuntu-recovery
     prepare: |
-      pi3/snapcraft_hooks/prepare.sh
+      snapcraft-hooks/prepare.sh
     build: |
-      pi3/snapcraft_hooks/build.sh
+      snapcraft-hooks/build.sh
     install: |
-      pi3/snapcraft_hooks/install.sh
+      snapcraft-hooks/install.sh
     build-packages:
       - squashfs-tools
       - u-boot-tools
       - gawk
       - sed
-  ubuntu-image-hooks:
-    plugin: dump
-    source: ubuntu-image-hooks
-    organize:
-      post-populate-rootfs: ubuntu-image-hooks/post-populate-rootfs
 slots:
   bcm-gpio-0:
     interface: gpio
