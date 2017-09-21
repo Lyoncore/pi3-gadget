@@ -34,6 +34,35 @@ To build the gadget snap locally on an armhf system please use `snapcraft`.
 To cross build this gadget snap on a PC please install the gcc-arm-linux-gnueabihf package
 before running `snapcraft`
 
+## Building ubuntu core image with recovery
+
+To build the Ubuntu core image with recovery partititon, please preparee pi3 model assertion.
+Install/refresh the ubuntu-image in the edge(1.1+snap3).
+```
+Install:
+$ snap install ubutnu-image --edge
+
+Refresh:
+$ snap refresh ubuntu-image --edge
+```
+
+Building the image with ubuntu-image by following command:
+```
+$ ubuntu-image --extra-snaps pi3_16.04-0.5_armhf.snap -w workdir <path to model assertion>/pi3.model --hooks-directory workdir/unpack/gadget/ubuntu-image-hooks/
+```
+
+After the image dd and boot success on Pi3 platform.
+The command to trigger recovery on pi3 Ubuntu Core 16:
+```
+$ sudo fw_setenv snap_mode recovery
+$ sudo reboot
+```
+
+Note: Currently, the recovery process requires to get user confirmation to prevent damage user data.
+The user confirmation still output to serial console only. Please attach serial console and enter [y] enter in when you see the prompt:
+```
+Factory Restore will delete all user data, are you sure? [y/N]
+```
 ## Launchpad Mirror and Automatic Builds.
 
 All commits from the master branch of https://github.com/snapcore/pi3 are
