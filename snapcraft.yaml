@@ -88,11 +88,11 @@ parts:
         - -devmode-firstboot-hooks/
   ubuntu-recovery:
     plugin: godeps
-    source: https://github.com/musicguitar/ubuntu-recovery.git
+    source: https://github.com/Lyoncore/ubuntu-recovery.git
     source-branch: master
     after:
       - recovery-configs
-    go-importpath: github.com/musicguitar/ubuntu-recovery
+    go-importpath: github.com/Lyoncore/ubuntu-recovery
     prepare: |
       snapcraft-hooks/prepare.sh
     build: |
