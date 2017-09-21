@@ -89,7 +89,7 @@ parts:
   ubuntu-recovery:
     plugin: godeps
     source: https://github.com/musicguitar/ubuntu-recovery.git
-    source-branch: support-ubuntu-image-restructuring
+    source-branch: master
     after:
       - recovery-configs
     go-importpath: github.com/musicguitar/ubuntu-recovery
