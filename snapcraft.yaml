@@ -87,13 +87,13 @@ parts:
         config.yaml: recovery-assets/recovery/
     stage:
         - -devmode-firstboot-hooks/
-  ubuntu-recovery:
+  ubuntu-custom-recovery:
     plugin: godeps
-    source: https://github.com/Lyoncore/ubuntu-recovery.git
+    source: https://github.com/Lyoncore/ubuntu-custom-recovery.git
     source-branch: master
     after:
       - recovery-configs
-    go-importpath: github.com/Lyoncore/ubuntu-recovery
+    go-importpath: github.com/Lyoncore/ubuntu-custom-recovery
     prepare: |
       snapcraft-hooks/prepare.sh
     build: |
